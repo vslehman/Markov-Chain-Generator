@@ -1,127 +1,130 @@
 #!/usr/bin/python
-
 import random
 
-class TransitionEntry:
+
+class TransitionEntry(object):
     def __init__(self, word):
         self.word = word
         self.count = 1
 
-class MarkovChainGenerator:
-    def __init__(self):
+
+class MarkovChainGenerator(object):
+
+    PUNCTUATION = [".", "!", "?"]
+
+    def __init__(self, reference="references/default.txt"):
         self.lookup = {}
-        self.PUNCTUATION = [".", "!", "?"]
 
         print "Initializing..."
-        self.loadReference()
-        self.configureCapitalizationAndPunctuation()
+        self.load_reference(reference)
+        self.configure_capitalization_and_punctuation()
         print "...Finished"
 
-    def loadReference(self, reference="references/default.txt"):
-        currentState = None
-        nextState = None
+    def load_reference(self, reference):
+        current_state = None
+        next_state = None
 
-        with open(reference) as f:
-            for line in f:
+        with open(reference) as input_file:
+            for line in input_file:
                 tokens = line.split()
 
-                if currentState is None and len(tokens) > 0:
-                    currentState = tokens.pop(0)
+                if current_state is None and len(tokens) > 0:
+                    current_state = tokens.pop(0).lower()
 
                 # For each word, create a transition from
                 # the current state. After, advance
                 # the current state to the next state
                 while len(tokens) > 0:
-                    nextState = tokens.pop(0)
+                    next_state = tokens.pop(0).lower()
 
-                    currentEntry = self.lookup.get(currentState)
+                    current_entry = self.lookup.get(current_state)
 
-                    if currentEntry is None:
-                        self.lookup[currentState] = {}
-                        currentEntry = self.lookup[currentState]
+                    if current_entry is None:
+                        self.lookup[current_state] = {}
+                        current_entry = self.lookup[current_state]
 
-                    nextEntry = currentEntry.get(nextState)
+                    next_entry = current_entry.get(next_state)
 
-                    if nextEntry is None:
-                        currentEntry[nextState] = TransitionEntry(nextState)
+                    if next_entry is None:
+                        current_entry[next_state] = TransitionEntry(next_state)
                     else:
-                        nextEntry.count += 1
+                        next_entry.count += 1
 
-                    currentState = nextState
+                    current_state = next_state
 
-    def configureCapitalizationAndPunctuation(self):
-        self.capitalizedWords = []
-        self.hasPunctuation = False
+    def configure_capitalization_and_punctuation(self):
+        self.capitalized_words = []
+        self.has_punctuation = False
 
         # Check for capitalization and punctuation
-        for key in self.lookup.keys():
+        for key in self.lookup:
             if key.istitle():
-                self.capitalizedWords.append(key)
+                self.capitalized_words.append(key)
 
             if key[-1] in self.PUNCTUATION:
-                self.hasPunctuation = True
+                self.has_punctuation = True
 
-    def getStartOfSentence(self):
+    def get_start_of_sentence(self):
         # If there is no capitalization, just pick a random
         # word to start from
-        if len(self.capitalizedWords) > 0:
-            return random.choice(self.capitalizedWords)
+        if len(self.capitalized_words) > 0:
+            return random.choice(self.capitalized_words)
         else:
             return random.choice(self.lookup.keys())
 
-    def isEndOfSentence(self, word):
+    def is_end_of_sentence(self, word):
         # If there is no punctuation, just let the sentence be a run-on
-        if not self.hasPunctuation:
+        if not self.has_punctuation:
             return False
 
         return word[-1] in self.PUNCTUATION
 
-    def generate(self, sentenceThreshold=1, wordThreshold=50):
-        nSentences = 0
-        nWords = 0
+    def generate(self, sentence_threshold=1, word_threshold=50):
+        num_sentences = 0
+        num_words = 0
         output = ""
 
-        currentWord = self.getStartOfSentence()
+        current_word = self.get_start_of_sentence()
 
         while True:
-            output += currentWord + " "
-            nWords += 1
+            output += current_word + " "
+            num_words += 1
 
             # Do we have enough words to call it a day?
-            if nWords >= wordThreshold:
+            if num_words >= word_threshold:
                 break
 
             # Check if this word has punctuation
-            if self.isEndOfSentence(currentWord):
-                nSentences += 1
+            if self.is_end_of_sentence(current_word):
+                num_sentences += 1
 
                 # Have we reached our sentence quota
-                if nSentences >= sentenceThreshold:
+                if num_sentences >= sentence_threshold:
                     break
 
                 # We have reached the end of the sentence, so let's
                 # grab a new random word to start a new sentence
-                currentWord = self.getStartOfSentence()
+                current_word = self.get_start_of_sentence()
                 continue
 
             try:
-                words = self.lookup[currentWord]
-            except:
+                words = self.lookup[current_word]
+            except KeyError:
                 # There are no words that follow this word,
                 # end the output
                 break
 
             possibilities = []
 
-            for k, word in words.iteritems():
-                for i in range(0, word.count):
+            for word in words.itervalues():
+                for _ in range(0, word.count):
                     possibilities.append(word.word)
 
             # Choose next word
-            currentWord = random.choice(possibilities)
+            current_word = random.choice(possibilities)
 
         print output
 
 if __name__ == "__main__":
-    markov = MarkovChainGenerator()
+    markov = MarkovChainGenerator(reference="references/default.txt")
     markov.generate()
